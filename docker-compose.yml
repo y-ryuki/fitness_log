@@ -1,0 +1,29 @@
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    container_name: fitnessapp
+
+    ports:
+      - "58080:80"
+    volumes:
+    - ./src:/var/www/html
+    env_file:
+      - ./docker/db/database.env
+    depends_on:
+      - db
+
+  db:
+    build:
+      context: .
+      dockerfile: docker/db/Dockerfile
+    container_name: fitnessdb
+    ports:
+      - "53305:3305"
+    volumes:
+      - ./docker/db/my.cnf:/etc/mysql/my.cnf
+      - ./docker/db/mysql_data:/var/lib/mysql
+    env_file:
+      - ./docker/db/database.env
