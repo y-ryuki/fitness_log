@@ -1,5 +1,6 @@
 
 <?php
+// namespace fitness_log;
 
 //URLを最初に受け取る
 require '../bootstrap.php';

@@ -1,7 +1,8 @@
 <?php
 
-require_once __DIR__ .'/../models/classes/UserLogic.php';
+
 require_once __DIR__ . '/../func.php';
+
 
 class SignupController extends Controller
 {
@@ -19,10 +20,14 @@ class SignupController extends Controller
         $csrf_token = Token();
 
         $err =[];
-        $err = $_SESSION;
+        $err [] = $_SESSION;
 
 
-        include __DIR__ . '/../views/signup_form.php';
+        return $this->render([
+            'csrf_token' => $csrf_token,
+            'error' => $err
+        ],'signup_form');
+        
 
     }
 
@@ -41,31 +46,33 @@ class SignupController extends Controller
 
 
         $usersData = [
-            'userid' => h($_POST['userid']),
+            'user_id' => h($_POST['userid']),
             'mail' => h($_POST['mail']),
             'pass' => password_hash(h($_POST['pass']), PASSWORD_DEFAULT),
             'confirmpass' => password_hash(h($_POST['confirmpass']), PASSWORD_DEFAULT),
         ];
-
+        
+        // $err = [];
         $err = $this->user_logic->validateUsers($usersData);
         $result = $this->user_logic->checkDuplicate($usersData);
 
-            if($result === false){
-                $err [] ='このユーザーIDは既に使われております。。もう一度やり直してください。';
-            }
-                
-                if(count($err) === 0){
-                    //ユーザを登録する処理
-                    $hasCreated = $this->user_logic->createUser($usersData);
-                    
-                    if(!$hasCreated){
-                        $err[] = '登録に失敗しました';
-                    }
-                }
-                
+        if($result === false){
+            $err [] ='このユーザーIDは既に使われております。。もう一度やり直してください。';
+        }
             
-            include __DIR__ . '/../views/signedup.php';
-
+            if(count($err) === 0){
+                //ユーザを登録する処理
+                $hasCreated = $this->user_logic->createUser($usersData);
+                
+                if(!$hasCreated){
+                    $err[] = '登録に失敗しました';
+                }
+            }
+            
+            
+        return $this->render([
+            'error' => $err
+        ],'signedup');
 
 
     }

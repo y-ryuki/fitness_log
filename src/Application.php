@@ -1,14 +1,17 @@
 <?php
 
 
+// use fitness_log\Response;
 //アプリケーション全体の管理
 class Application
 {
 
     private $router;
+    protected $response;
     public function __construct()
     {
         $this->router = new Router($this->registerRoutes());
+        $this->response = new Response();
     }
 
     public function run()
@@ -28,6 +31,8 @@ class Application
         }catch(HTTPNotFoundException){
             $this->render404Page();
         }
+
+        $this->response->send();
             
     }
 
@@ -39,7 +44,8 @@ class Application
         }
         
         $controller = new $controllerClass();
-        $controller->run($action);
+        $content = $controller->run($action);
+        $this->response->setContent($content);
     }
 
     private function registerRoutes()
@@ -72,8 +78,9 @@ private function getPathInfo()
 
 private function render404Page()
 {
-    header('HTTP/1.1 404 Page Not Found');
-    $content = <<<EOF
+    $this->response->setStatusCode(404,'Not Found');
+    $this->response->setContent(
+    <<<EOF
     <!DOCTYPE html>
     <html lang="ja">
     <head>
@@ -83,16 +90,16 @@ private function render404Page()
         <title>404</title>
     </head>
     <body>
-
+    
         <h1>
-            Page Not Found
+            404 Page Not Found
         </h1>
-
         
+    
     </body>
     </html>
-EOF;
-    echo $content;
+    EOF
+    );
 
 }
 
