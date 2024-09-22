@@ -1,12 +1,14 @@
 <?php 
 
-require_once __DIR__ . '/../models/classes/listLogic.php';
-require_once '../func.php';
+
+// require_once __DIR__ . '/../models/classes/listLogic.php';
+// require_once '../func.php';
 
 
 class RecordController extends Controller
 {
     private $recordLogic;
+    private array $err = [];
     public function __construct()
     {
         $this->recordLogic = new listLogic();
@@ -14,42 +16,52 @@ class RecordController extends Controller
 
     public function index()
     {
-        session_start();
-
-        $login_user = $_SESSION['login_user'];
-        $user_id = $login_user['userid'];
-
+        if (session_status() == PHP_SESSION_NONE) {
+            // セッションは有効で、開始していないとき
+            session_start();
+        }
         if(!isset($_SESSION['login_user'])){
-            header('Location: /record/create');
+            $_SESSION['msg'] = 'ログインもしくは会員登録をしてください';
+            header('Location:/');
+            exit;
+
+        }else{
+            $login_user = $_SESSION['login_user'];
+            $user_id = $login_user['userid'];
+            $results = $this->recordLogic->selectTable($user_id); 
+        
+            return $this->render([
+                'title' => 'トレーニングリスト',
+                'results' => $results,
+        ],'recordlist');
+
+
         }
 
-            
-            
-            $results = $this->recordLogic->selectTable($user_id);    
-
-        include __DIR__ . '/../views/recordlist.php';
     }
 
     public function create()
     {
-        session_start();
 
-        $csrf_token = Token();
-
-        $err =[];
-        $err = $_SESSION;
-
-        $login_user = $_SESSION['login_user'];
-        $user_id = $login_user['userid'];
-
-
-        if(!isset($_SESSION['login_user'])){
-            header('Location: /record/create');
+        if (session_status() == PHP_SESSION_NONE) {
+            // セッションは有効で、開始していないとき
+            session_start();
         }
 
-
-        include __DIR__ . '/../views/record_form.php';
+        $csrf_token = Token();
         
+        if(!isset($_SESSION['login_user'])){
+            $_SESSION['msg'] = 'ログインもしくは会員登録をしてください';
+            header('Location:/');
+            exit;
+            }else{
+                return $this->render([
+                    'title' => 'トレーニングレコード',
+                    'error' => $this->err,
+                    'csrf_token' => $csrf_token,
+                    
+            ],'record_form');
+        }
     }
 
 
@@ -57,10 +69,14 @@ class RecordController extends Controller
     {
         session_start();
 
-        if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $token = filter_input(INPUT_POST, 'csrf_token');
+
+        if (!isset($_POST['csrf_token']) || $token !== $_SESSION['csrf_token']) {
             // トークンが一致しなかった場合
             die('不正なリクエストです。');
         }
+        unset($_SESSION['csrf_token']);
+
     
         $login_user = $_SESSION['login_user'];
         $user_id = $login_user['userid'];
@@ -73,19 +89,26 @@ class RecordController extends Controller
                 'weight' => h($_POST['weight']),
                 'count' => h($_POST['rep']),
             ];
-    
-            $err =[];
-            
-            $logic = new listLogic();
-            $err = $logic->validateRecord($records);
-            if (count($err) > 0) {
-                // エラーがあった場合は戻す
-                $_SESSION = $err;
-                header('Location: /record/create');
-                return;
+                $this->err = $this->recordLogic->validateRecord($records);
+            if (count($this->err) > 0) {
+                return $this->render([
+                    'title' => 'トレーニングレコード',
+                    'error' => $this->err
+            ],'record_form');
+
             }
     
-            $this->recordLogic->recordTable($records,$user_id); 
+            $result = $this->recordLogic->recordTable($records,$user_id); 
+            if ($result == true){
+                return $this->index();
+            }else{
+                $this->err[] ='レコード処理に失敗しました。' ;
+                return $this->render([
+                    'title' => 'トレーニングレコード',
+                    'error' => $this->err
+            ],'record_form');
+
+            }
         }
 
     }
@@ -94,26 +117,33 @@ class RecordController extends Controller
     {
         session_start();
         if(!isset($_SESSION['login_user'])){
-            header('Location: /record/create');
+            return $this->create();
+            
         }
-
         $csrf_token = Token();
-
-        $err =[];
-        $err = $_SESSION;
-
         $id = $_POST['id'];
-        include __DIR__ . '/../views/edit_form.php';
+
+        return $this->render([
+            'title' => '編集',
+            'id' => $id,
+            'csrf_token' => $csrf_token,
+            ],'edit_form');
+        
     }
 
     public function update()
     {
         session_start();
 
-        if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $token = filter_input(INPUT_POST, 'csrf_token');
+
+        if (!isset($_POST['csrf_token']) || $token !== $_SESSION['csrf_token']) {
             // トークンが一致しなかった場合
             die('不正なリクエストです。');
         }
+        
+        unset($_SESSION['csrf_token']);
+
 
         $id = $_POST['id'];
 
@@ -125,29 +155,34 @@ class RecordController extends Controller
             'count' => h($_POST['rep']),
         ];
 
-        $logic = new listLogic();
-        $err = $this->recordLogic->validateRecord($updateRecords);
-        if (count($err) > 0) {
-            // エラーがあった場合は戻す
-            $_SESSION = $err;
-            header('Location: /record/create');
-            return;
+        
+        $this->err = $this->recordLogic->validateRecord($updateRecords);
+        if (count($this->err) > 0) {
+            return $this->update();
+
         }else{
             
-            $this->recordLogic->updateTable($id,$updateRecords);
+            $result = $this->recordLogic->updateTable($id,$updateRecords);
+
         }
+    }
+
+        if ($result == true){
+            return $this->index();
         }
+
     }
 
     public function delete()
     {
         $id = $_POST['id'];
-        $logic = new listLogic();
-        $this->recordLogic->deleteTable($id);
+        $result = $this->recordLogic->deleteTable($id);
 
+        if ($result == true){
+            return $this->index();
 
     }
 
-
+    }
 
 }

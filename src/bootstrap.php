@@ -1,8 +1,9 @@
 <?php
+
 //初期化処理
 
 // 全ページで使用する想定の各種ファイルを読み込み
-require 'core/Autoloader.php';
+require 'core/AutoLoader.php';
 
 $loader = new AutoLoader();
 
